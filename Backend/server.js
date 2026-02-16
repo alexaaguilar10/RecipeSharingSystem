@@ -79,7 +79,11 @@ app.get("/recipes", (req, res) => {
 //Create POST to add a new recipe
 app.post("/recipes", (req, res) => {
   const { userId, title, ingredients, instructions } = req.body;
-
+  if (!userId) 
+  {
+    return res.status(401).json({ 
+    message: "You must be logged in to add recipes"  });
+  }
   const sql = 
   ` INSERT INTO recipes (user_id, title, ingredients, instructions)
     VALUES (?, ?, ?, ?)`;

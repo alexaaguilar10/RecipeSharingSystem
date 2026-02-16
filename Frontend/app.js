@@ -141,20 +141,26 @@ async function loadRecipes() {
 
 //creating a new recipe 
 const recipeForm = document.getElementById("recipeForm");
-if (recipeForm) 
-{
+if (recipeForm) {
   recipeForm.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const recipe = 
-    {
-      userId: localStorage.getItem("userId"),
+    const userId = localStorage.getItem("userId");
+
+    // GUEST CHECK
+    if (!userId) {
+      alert("Please log in or sign up to add a recipe.");
+      return;
+    }
+
+    const recipe = {
+      userId,
       title: document.getElementById("title").value,
       ingredients: document.getElementById("ingredients").value,
       instructions: document.getElementById("instructions").value
     };
-    //send the recipe to backend
-    fetch("http://localhost:3000/recipes", {
+
+    await fetch("http://localhost:3000/recipes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(recipe)
@@ -164,6 +170,7 @@ if (recipeForm)
     loadRecipes();
   });
 }
+
 //delete recipe
 async function deleteRecipe(id) {
   await fetch(`http://localhost:3000/recipes/${id}`, {
