@@ -72,7 +72,10 @@ document.addEventListener("DOMContentLoaded", () => {
     welcomeMsg.textContent = `Welcome, ${username}!`;
 
     authDiv.innerHTML = `
-      <button class="btn btn-danger">Logout</button>
+      <a href="favorites.html" class="btn btn-success me-2">
+      My Favorites
+      </a>
+    <button class="btn btn-danger">Logout</button>
     `;
 
     authDiv.querySelector("button").addEventListener("click", () => {
@@ -89,34 +92,53 @@ document.addEventListener("DOMContentLoaded", () => {
 
 //load recipes
 async function loadRecipes() {
-  //get the recipes from the backend
   const res = await fetch("http://localhost:3000/recipes");
   const recipes = await res.json();
+
+  const userId = localStorage.getItem("userId");
+
+  // get all favorites for this user
+  let favoriteIds = new Set();
+  if (userId) {
+    const favRes = await fetch(`http://localhost:3000/favorites/${userId}`);
+    const favs = await favRes.json();
+    favs.forEach(f => favoriteIds.add(f.id));
+  }
 
   const list = document.getElementById("recipeList");
   list.innerHTML = "";
 
   recipes.forEach(r => {
     let buttons = "";
-    //edit and delete btn will only show for the user that owns it
-    if (r.user_id == localStorage.getItem("userId")) 
-    {
-      buttons = 
-      ` <button class="btn btn-warning btn-sm" onclick="editRecipe(${r.id})">Edit</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteRecipe(${r.id})">Delete</button>`;
+    if (r.user_id == userId) {
+      buttons = `
+        <button class="btn btn-warning btn-sm" onclick="editRecipe(${r.id})">Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteRecipe(${r.id})">Delete</button>
+      `;
     }
-    //display the recipe card
-    list.innerHTML += 
-    ` <div class="card mb-3 p-3">
+
+    // check if this recipe is favorited
+    const isFav = favoriteIds.has(r.id);
+    const favClass = isFav ? "btn-btn-success" : "btn-outline-success";
+
+    list.innerHTML += `
+      <div class="card mb-3 p-3">
         <h4>${r.title}</h4>
         <p><strong>By:</strong> ${r.username}</p>
         <p><strong>Ingredients:</strong><br>${r.ingredients}</p>
         <p><strong>Instructions:</strong><br>${r.instructions}</p>
         ${buttons}
+        <button 
+          id="fav-${r.id}"
+          class="btn ${favClass} btn-sm"
+          onclick="toggleFavorite(${r.id})">
+          Favorite!
+        </button>
       </div>
     `;
   });
 }
+
 //creating a new recipe 
 const recipeForm = document.getElementById("recipeForm");
 if (recipeForm) 
@@ -177,4 +199,46 @@ async function editRecipe(id) {
 //recipes show on main page if logged out
 document.addEventListener("DOMContentLoaded", loadRecipes);
 
+
+// add favorite function:
+async function toggleFavorite(recipeId) {
+  const userId = localStorage.getItem("userId");
+
+  if (!userId) {
+    alert("You must be logged in to favorite recipes.");
+    return;
+  }
+
+  // Check if already favorited
+  const checkRes = await fetch(
+    `http://localhost:3000/favorites/check/${userId}/${recipeId}`
+  );
+  const checkData = await checkRes.json();
+
+  const btn = document.getElementById(`fav-${recipeId}`);
+
+  if (checkData.favorited) {
+    // REMOVE favorite
+    await fetch("http://localhost:3000/favorites", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, recipeId })
+    });
+
+    // turn gray
+    btn.classList.remove("btn-success");
+    btn.classList.add("btn-outline-success");
+  } else {
+    // ADD favorite
+    await fetch("http://localhost:3000/favorites", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, recipeId })
+    });
+
+    // turn red
+    btn.classList.remove("btn-outline-success");
+    btn.classList.add("btn-success");
+  }
+}
 
