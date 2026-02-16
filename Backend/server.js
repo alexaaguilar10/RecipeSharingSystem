@@ -79,7 +79,11 @@ app.get("/recipes", (req, res) => {
 //Create POST to add a new recipe
 app.post("/recipes", (req, res) => {
   const { userId, title, ingredients, instructions } = req.body;
-
+  if (!userId) 
+  {
+    return res.status(401).json({ 
+    message: "You must be logged in to add recipes"  });
+  }
   const sql = 
   ` INSERT INTO recipes (user_id, title, ingredients, instructions)
     VALUES (?, ?, ?, ?)`;
@@ -141,6 +145,73 @@ app.delete("/recipes/:id", (req, res) => {
     res.json({ message: "Recipe deleted" });
   });
 });
+
+// add favorited recipe
+app.post("/favorites", (req, res) => {
+  const { userId, recipeId } = req.body;
+
+  const sql =
+    "INSERT INTO favorites (user_id, recipe_id) VALUES (?, ?)";
+
+  db.query(sql, [userId, recipeId], (err) => {
+    if (err) {
+      return res.status(400).json({ message: "Already favorited" });
+    }
+    res.json({ message: "Recipe favorited" });
+  });
+});
+
+
+// remove favorite recipe:
+app.delete("/favorites", (req, res) => {
+  const { userId, recipeId } = req.body;
+
+  const sql =
+    "DELETE FROM favorites WHERE user_id = ? AND recipe_id = ?";
+
+  db.query(sql, [userId, recipeId], (err) => {
+    if (err) {
+      return res.status(500).json({ message: "Error removing favorite" });
+    }
+    res.json({ message: "Favorite removed" });
+  });
+});
+
+// alll of the favorited recipes from users
+app.get("/favorites/:userId", (req, res) => {
+  const sql = `
+    SELECT r.*, u.username
+    FROM favorites f
+    JOIN recipes r ON f.recipe_id = r.id
+    JOIN users u ON r.user_id = u.id
+    WHERE f.user_id = ?
+    ORDER BY f.created_at DESC
+  `;
+
+  db.query(sql, [req.params.userId], (err, results) => {
+    if (err) {
+      return res.status(500).json({ error: "Database error" });
+    }
+    res.json(results);
+  });
+});
+
+app.get("/favorites/check/:userId/:recipeId", (req, res) => {
+  const { userId, recipeId } = req.params;
+
+  const sql =
+    "SELECT * FROM favorites WHERE user_id = ? AND recipe_id = ?";
+
+  db.query(sql, [userId, recipeId], (err, results) => {
+    if (results.length > 0) {
+      res.json({ favorited: true });
+    } else {
+      res.json({ favorited: false });
+    }
+  });
+});
+
+
 
 const PORT = 3000;
 
