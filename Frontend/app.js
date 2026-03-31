@@ -16,9 +16,11 @@ if (signupForm) {
       body: JSON.stringify(user)
     });
 
+    const result = await res.json();
     if (res.ok) {
       localStorage.setItem("loggedIn", "true");
-      localStorage.setItem("username", user.username);
+      localStorage.setItem("username", result.username);
+      localStorage.setItem("userId", result.userId); // <- add this
       window.location.href = "homepage.html";
     } else {
       alert("Signup failed");
