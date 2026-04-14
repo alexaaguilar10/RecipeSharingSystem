@@ -1,0 +1,47 @@
+services:
+  api-gateway:
+    build: ./api_gateway
+    container_name: recipe-api-gateway
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      USER_SERVICE_URL: http://user-service:3001
+      RECIPE_SERVICE_URL: http://recipe-service:3002
+      FAVORITES_SERVICE_URL: http://favorites-service:3003
+    depends_on:
+      - user-service
+      - recipe-service
+      - favorites-service
+
+  user-service:
+    build: ./user_service
+    container_name: recipe-user-service
+    environment:
+      PORT: 3001
+      DB_PATH: /data/users.db
+    volumes:
+      - user_service_data:/data
+
+  recipe-service:
+    build: ./recipe_service
+    container_name: recipe-service
+    environment:
+      PORT: 3002
+      DB_PATH: /data/recipes.db
+    volumes:
+      - recipe_service_data:/data
+
+  favorites-service:
+    build: ./favorites_service
+    container_name: recipe-favorites-service
+    environment:
+      PORT: 3003
+      DB_PATH: /data/favorites.db
+    volumes:
+      - favorites_service_data:/data
+
+volumes:
+  user_service_data:
+  recipe_service_data:
+  favorites_service_data:

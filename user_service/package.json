@@ -1,0 +1,13 @@
+{
+  "name": "recipe-sharing-user-service",
+  "version": "1.0.0",
+  "private": true,
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "sqlite3": "^5.1.7"
+  }
+}
