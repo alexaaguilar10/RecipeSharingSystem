@@ -58,3 +58,7 @@ body.app-shell {
 .service-note {
   border-left: 4px solid #198754;
 }
+
+.preserve-linebreaks {
+  white-space: pre-line;
+}
