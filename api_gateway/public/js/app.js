@@ -25,7 +25,7 @@ function logout() {
 }
 
 //create a recipe for secure
-function createRecipeCard(recipe, currentUserId) {
+function createRecipeCard(recipe, currentUserId, favoriteSet = new Set()) {
   const canManage = String(recipe.user_id) === String(currentUserId);
 
   const article = document.createElement("article");
@@ -46,26 +46,38 @@ function createRecipeCard(recipe, currentUserId) {
   titleWrap.append(title, meta);
   header.appendChild(titleWrap);
 
+  const actions = document.createElement("div");
+  const editButton = document.createElement("button");
+  const deleteButton = document.createElement("button");
+
   if (canManage) 
   {
-    const actions = document.createElement("div");
     actions.className = "d-flex gap-2";
 
-    const editButton = document.createElement("button");
     editButton.className = "btn btn-outline-warning btn-sm";
     editButton.dataset.action = "edit";
     editButton.dataset.id = recipe.id;
     editButton.textContent = "Edit";
 
-    const deleteButton = document.createElement("button");
     deleteButton.className = "btn btn-outline-danger btn-sm";
     deleteButton.dataset.action = "delete";
     deleteButton.dataset.id = recipe.id;
     deleteButton.textContent = "Delete";
-
-    actions.append(editButton, deleteButton);
-    header.appendChild(actions);
   }
+
+  const isFavorited = favoriteSet.has(String(recipe.id));
+
+  const favoritesButton = document.createElement("button");
+  favoritesButton.className = "btn btn-outline-success btn-sm";
+  favoritesButton.dataset.action = "favorite";
+  favoritesButton.dataset.id = recipe.id;
+
+  favoritesButton.textContent = isFavorited
+    ? "Favorited"
+    : "Favorite";
+
+  actions.append(editButton, deleteButton, favoritesButton);
+  header.appendChild(actions);
 
   const ingredientsSection = document.createElement("div");
   ingredientsSection.className = "mb-3";
@@ -262,6 +274,37 @@ function bindRecipeCardActions(currentUserId) {
       loadRecipesPage();
     });
   });
+
+  document.querySelectorAll("[data-action='favorite']").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const recipeId = button.dataset.id;
+      const isFavorited = button.textContent.includes("Favorited");
+
+      const method = isFavorited ? "DELETE" : "POST";
+
+      const response = await fetch(`${favoritesApiBase}`, {
+        method: method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: currentUserId,
+          recipeId: recipeId
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        alert(result.message || "Favorite action failed.");
+        return;
+      }
+
+      button.textContent = isFavorited
+        ? "Favorite"
+        : "Favorited";
+
+      loadFavoritesTemplates();
+    });
+  });
 }
 
 
@@ -281,6 +324,13 @@ async function loadRecipesPage()
     window.location.href = "login.html";
     return;
   }
+
+  const favRes = await fetch(`${favoritesApiBase}/${user.userId}`);
+  const favorites = await favRes.json();
+
+  const favoriteSet = new Set(
+    favorites.map(f => String(f.recipe_id))
+  );
 
   if (logoutButton) {
     logoutButton.addEventListener("click", logout);
@@ -314,7 +364,7 @@ async function loadRecipesPage()
     const fragment = document.createDocumentFragment();
 
     recipes.forEach((recipe) => {
-      fragment.appendChild(createRecipeCard(recipe, user.userId));
+      fragment.appendChild(createRecipeCard(recipe, user.userId, favoriteSet));
     });
 
     recipeList.appendChild(fragment);
@@ -383,22 +433,47 @@ function setupRecipeForm() {
 
 async function loadFavoritesTemplates() {
   const favoriteList = document.getElementById("favoriteList");
-
-  if (!favoriteList) {
-    return;
-  }
+  if (!favoriteList) return;
 
   const user = getStoredUser();
-  if (!user.loggedIn) {
-    window.location.href = "login.html";
+
+  const favRes = await fetch(`${favoritesApiBase}/${user.userId}`);
+  const favorites = await favRes.json();
+
+  const recipeRes = await fetch(recipeApiBase);
+  const recipes = await recipeRes.json();
+
+  const favoriteRecipes = recipes.filter(r =>
+    favorites.some(f => String(f.recipe_id) === String(r.id))
+  );
+
+  const favoriteSet = new Set(
+    favorites.map(f => String(f.recipe_id))
+  );
+
+  console.log("Filtered:", favoriteRecipes);
+
+  favoriteList.innerHTML = "";
+
+  if (favoriteRecipes.length === 0) {
+    favoriteList.innerHTML = `
+      <article class="recipe-card">
+        <p class="mb-0">No favorites yet.</p>
+      </article>
+    `;
     return;
   }
 
-  favoriteList.innerHTML = `
-    <article class="recipe-card">
-      <p class="mb-0">Favorites service is still a template, so this page will work after that service is implemented.</p>
-    </article>
-  `;
+  const fragment = document.createDocumentFragment();
+
+  favoriteRecipes.forEach(recipe => {
+    fragment.appendChild(createRecipeCard(recipe, user.userId, favoriteSet));
+  });
+
+  favoriteList.appendChild(fragment);
+
+  // optional: enable favorite buttons on this page too
+  bindRecipeCardActions(user.userId);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
